@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Define the log file to monitor
+LOG_FILE="/var/log/syslog"
+
+# Function to handle cleanup and exit
+cleanup_exit() {
+    echo "Exiting..."
+    exit 0
+}
+
+# Trap Ctrl+C to call cleanup_exit function
+trap cleanup_exit SIGINT
+
+# Function to display usage
+display_usage() {
+    echo "Usage: $0 <keyword>"
+    echo "Example: $0 ERROR"
+}
+
+# Check if keyword is provided as argument
+if [ $# -eq 0 ]; then
+    echo "Error: Keyword not provided."
+    display_usage
+    exit 1
+fi
+
+# Initialize keyword to search for
+KEYWORD="$1"
+
+# Function to monitor log file
+monitor_log() {
+    echo "Monitoring log file: $LOG_FILE for keyword: $KEYWORD"
+    if [ ! -f "$LOG_FILE" ]; then
+        echo "Error: Log file $LOG_FILE not found."
+        cleanup_exit
+    fi
+    tail -n 0 -f "$LOG_FILE" | grep --line-buffered "$KEYWORD" | while read line; do
+        echo "New entry: $line"
+    done
+}
+
+# Function to perform log analysis
+analyze_log() {
+    echo "Analyzing log for keyword: $KEYWORD"
+    echo "Top occurrences of keyword \"$KEYWORD\":"
+    grep -o "$KEYWORD" "$LOG_FILE" | sort | uniq -c | sort -rn | head -n 10
+}
+
+# Main function
+main() {
+    monitor_log &
+    PID=$!
+
+    # Wait for user input to analyze the log
+    echo "Press Enter to generate analysis report or Ctrl+C to exit."
+    read input
+
+    # Generate analysis report
+    analyze_log
+
+    # Cleanup and exit
+    kill $PID
+    cleanup_exit
+}
+
+# Call main function
+main
